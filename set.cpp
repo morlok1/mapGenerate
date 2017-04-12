@@ -1,19 +1,40 @@
 #include "set.h"
-
+#include <QApplication>
 set::set()
 {
     grid = new QGridLayout(this);
 
-    getImage1 = new QPushButton(this);
-    getImage1->setText("Изображение #1");
+    localAddress = new QLineEdit(this);
+    localAddress->setDisabled(true);
 
-    localAddress1 = new QLineEdit(this);
-    localAddress1->setDisabled(true);
-
-    getStart = new QPushButton(this);
-    getStart->setText("Сложить");
+    getImage = new QPushButton(this);
+    getImage->setText("Изображение");
 
     info = new QLabel(this);
+
+    sensitivity = new QSlider(this);
+    sensitivity->setValue(10);
+    sensitivityValue = 10;
+    sensitivity->setTickInterval(1);
+    sensitivity->setTracking(true);
+    sensitivity->setOrientation(Qt::Orientation::Horizontal);
+    sensitivity->setMaximum(256);
+    sensitivity->setMinimum(0);
+
+    sensitivityText = new QLabel(this);
+    sensitivityText->setText("Чувствительность: 10");
+    sensitivityText->setAlignment(Qt::AlignCenter);
+    sensitivityText->setMinimumWidth(120);
+    sensitivityText->setMaximumWidth(120);
+
+    permissionToDraw = new QCheckBox(this);
+    permissionToDraw->setText("Да, я хочу отрисовать здесь карту");
+    permissionToDraw->setChecked(true);
+
+    getStart = new QPushButton(this);
+    getStart->setText("Сгенерировать");
+
+
 
     scene = new QGraphicsScene(this);
     view = new QGraphicsView(this);
@@ -21,18 +42,20 @@ set::set()
     view->setGeometry(0,0,400,400);
     view->setScene(scene);
 
-    grid->addWidget(view,1,0,1,2);
-
-    grid->addWidget(localAddress1,0,0);
-    grid->addWidget(getImage1,0,1);
-
-    grid->addWidget(getStart,2,0,1,2);
-    grid->addWidget(info,3,0,1,2);
+    grid->addWidget(localAddress,0,0);
+    grid->addWidget(getImage,0,1,1,2);
+    grid->addWidget(sensitivityText,1,1);
+    grid->addWidget(sensitivity,1,2);
+    grid->addWidget(permissionToDraw,2,1,1,2);
+    grid->addWidget(info,2,0);
+    grid->addWidget(view,3,0,1,3);
+    grid->addWidget(getStart,4,0,1,3);
 
     setLayout(grid);
 
-    QWidget::connect(getImage1, SIGNAL (clicked()), this, SLOT (getFirstImage()));
-    QWidget::connect(getStart, SIGNAL (clicked()), this, SLOT (getImageSum()));
+    QWidget::connect(getImage, SIGNAL (clicked()), this, SLOT (getMapImage()));
+    QWidget::connect(getStart, SIGNAL (clicked()), this, SLOT (getMapGenerate()));
+    QWidget::connect(sensitivity, SIGNAL (valueChanged(int)), this, SLOT (setSensitivity()));
 }
 
 set::~set()
@@ -40,32 +63,51 @@ set::~set()
 
 }
 
-void set::getFirstImage()
+void set::getMapImage()
 {
     QString path =  QFileDialog::getOpenFileName(this,
                                                  QString::fromUtf8("Открыть файл"),
                                                  QDir::currentPath(),
-                                                 "Images (*.png *.xpm *.jpg);;All files (*.*)");
-    localAddress1->setText(path);
-    pic1.load(path);
+                                                 "Images (*.png *.jpg);;All files (*.*)");
+    localAddress->setText(path);
+    mapImage.load(path);
 }
 
-void set::getImageSum()
+void set::getMapGenerate()
 {
-    uchar* data = new uchar[pic1.height()*pic1.width()];
-    for (int i=0; i<pic1.width(); i++)
+    //Чистим сцену
+    scene->clear();
+    //Этот результат мы выведем
+    QString resInfo;
+
+    //Открываем файл
+    QFile file("map.txt");
+    file.open(QIODevice::WriteOnly | QIODevice::Text);
+
+
+    //Начинаем обход изображения
+    for (int i=0; i<mapImage.height(); i++)
     {
-        for (int j=0; j<pic1.height(); j++)
+        for (int j=0; j<mapImage.width(); j++)
         {
-            if (pic1.pixelColor(i,j).black() > 1)
-            {
-                createNewDote(i, j);
+            if (mapImage.pixelColor(j,i).black() >= sensitivityValue)
+            {//Я, конечно, не расист, но... если пиксел не белый
+                if (permissionToDraw->isChecked())
+                    createNewDote(j, i);
+                file.write("1");
+
             }
+            else
+                file.write("0");
+            file.write(" ");
+            //Выведем процесс, для красоты
+            QCoreApplication::processEvents();
         }
+        file.write("\r\n");
     }
-    //picR = QImage(data, pic1.height(), pic2.width(), QImage::Format_ARGB32);
-    //picR.save("result.png","PNG");
-    info->setText(QString::number(pic1.height()) + "x" + QString::number(pic1.width()));
+    file.close();
+    resInfo = "Сгенерирована карта размером " + QString::number(mapImage.height()) + "x" + QString::number(mapImage.width()) + " точек.";
+    info->setText(resInfo);
 }
 
 void set::createNewDote(double x, double y)
@@ -75,3 +117,15 @@ void set::createNewDote(double x, double y)
     scene->addItem(rect);
 }
 
+void set::setSensitivity()
+{
+    sensitivityValue = sensitivity->value();
+    if (sensitivityValue == 0) //Если все плохо
+        sensitivityText->setText("You shall not pass");
+    else if (sensitivityValue == 256)
+        sensitivityText->setText("Халтурим ;)");
+    else
+        sensitivityText->setText("Чувствительность: " + QString::number(sensitivityValue));
+
+
+}

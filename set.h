@@ -7,16 +7,25 @@ class set : public QWidget
 {
     Q_OBJECT
 
-    QImage pic1;
+    //Данные
+    QImage mapImage;
+    int sensitivityValue;
 
+    //Сцена
     QGraphicsScene* scene;
     QGraphicsView* view;
 
-    QPushButton* getImage1;
-    QLineEdit* localAddress1;
+    //Интерфейс
     QGridLayout* grid;
-    QPushButton* getStart;
+
+    QLineEdit* localAddress;
+    QPushButton* getImage;
+    QSlider* sensitivity;
+    QLabel* sensitivityText;
+    QCheckBox* permissionToDraw;
     QLabel* info;
+    QPushButton* getStart;
+
 
 public:
     set();
@@ -24,10 +33,12 @@ public:
 
 public slots:
 
-    void getFirstImage();
-    void getImageSum();
+    void getMapImage();
+    void getMapGenerate();
 
     void createNewDote(double x, double y);
+
+    void setSensitivity();
 };
 
 #endif // SET_H
